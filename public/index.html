@@ -1,65 +1,231 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snake Game</title>
     <style>
-        body {
+        body,
+        html {
+            height: 100%;
+            margin: 0;
             font-family: Arial, sans-serif;
+        }
+
+        .background {
+            background-image: url('MainBG.jpg');
+            height: 100%;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
         }
-        #game-container {
+
+        .login-container {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 5px;
             text-align: center;
         }
-        #game-board {
-            border: 2px solid #000;
+
+        .login-form {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 10px;
         }
-        #login-form, #register-form {
-            margin-bottom: 20px;
-        }
+
         input {
             margin: 5px;
             padding: 5px;
+            width: 150px;
         }
+
         button {
             margin: 5px;
             padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .register-link {
+            color: blue;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .register-form {
+            display: none;
+        }
+
+        #game-container {
+            text-align: center;
+            position: relative;
+            display: none;
+        }
+
+        #game-board {
+            border: 2px solid #000;
+        }
+
+        #new-game-btn,
+        #exit-game-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+
+        #new-game-btn {
+            left: -120px;
+        }
+
+        #exit-game-btn {
+            right: -120px;
+        }
+
+        #user-info {
+            margin-bottom: 10px;
         }
     </style>
 </head>
+
 <body>
+    <div class="background">
+        <div class="login-container">
+            <div id="login-form" class="login-form">
+                <input type="email" id="login-email" placeholder="Email">
+                <input type="password" id="login-password" placeholder="Password">
+                <button onclick="login()">Login</button>
+            </div>
+            <div class="register-link" onclick="showRegisterForm()">Register</div>
+            <div id="register-form" class="register-form">
+                <input type="text" id="register-first-name" placeholder="First Name">
+                <input type="text" id="register-last-name" placeholder="Last Name">
+                <input type="email" id="register-email" placeholder="Email">
+                <input type="password" id="register-password" placeholder="Password">
+                <button onclick="register()">Register</button>
+            </div>
+        </div>
+    </div>
+
     <div id="game-container">
-        <div id="login-form">
-            <input type="email" id="login-email" placeholder="Email">
-            <input type="password" id="login-password" placeholder="Password">
-            <button onclick="login()">Login</button>
-        </div>
-        <div id="register-form">
-            <input type="email" id="register-email" placeholder="Email">
-            <input type="password" id="register-password" placeholder="Password">
-            <button onclick="register()">Register</button>
-        </div>
+        <div id="user-info"></div>
         <canvas id="game-board" width="400" height="400"></canvas>
         <div id="score">Score: 0</div>
         <div id="high-score">High Score: 0</div>
+        <button id="new-game-btn" onclick="startNewGame()">New Game</button>
+        <button id="exit-game-btn" onclick="exitGame()">Exit Game</button>
     </div>
+
     <script>
         const canvas = document.getElementById('game-board');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
         const highScoreElement = document.getElementById('high-score');
+        const userInfoElement = document.getElementById('user-info');
+        const gameContainer = document.getElementById('game-container');
+        const loginContainer = document.querySelector('.login-container');
+        const registerForm = document.getElementById('register-form');
 
-        let snake = [{x: 200, y: 200}];
+        let snake = [{ x: 200, y: 200 }];
         let food = {};
         let direction = 'right';
         let score = 0;
         let highScore = 0;
+        let gameInterval;
+        let currentUser = null;
+
+        function showRegisterForm() {
+            document.getElementById('login-form').style.display = 'none';
+            registerForm.style.display = 'block';
+        }
+
+        async function login() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUser = {
+                        email: email,
+                        firstName: data.firstName,
+                        lastName: data.lastName
+                    };
+                    highScore = data.highScore;
+                    startGame();
+                } else {
+                    alert('Login failed: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during login. Please try again.');
+            }
+        }
+
+        async function register() {
+            const firstName = document.getElementById('register-first-name').value;
+            const lastName = document.getElementById('register-last-name').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password, firstName, lastName }),
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('Registration successful! Please log in.');
+                    clearRegisterForm();
+                    showLoginForm();
+                } else {
+                    alert('Registration failed: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during registration. Please try again.');
+            }
+        }
+
+        function clearRegisterForm() {
+            document.getElementById('register-first-name').value = '';
+            document.getElementById('register-last-name').value = '';
+            document.getElementById('register-email').value = '';
+            document.getElementById('register-password').value = '';
+        }
+
+        function showLoginForm() {
+            registerForm.style.display = 'none';
+            document.getElementById('login-form').style.display = 'flex';
+        }
+
+        function startGame() {
+            document.querySelector('.background').style.display = 'none';
+            gameContainer.style.display = 'block';
+            userInfoElement.textContent = `Welcome, ${currentUser.firstName} ${currentUser.lastName}!`;
+            highScoreElement.textContent = `High Score: ${highScore}`;
+            startNewGame();
+        }
 
         function drawSnakePart(snakePart) {
             ctx.fillStyle = 'green';
@@ -72,9 +238,9 @@
         }
 
         function moveSnake() {
-            const head = {x: snake[0].x, y: snake[0].y};
+            const head = { x: snake[0].x, y: snake[0].y };
 
-            switch(direction) {
+            switch (direction) {
                 case 'up': head.y -= 10; break;
                 case 'down': head.y += 10; break;
                 case 'left': head.x -= 10; break;
@@ -106,20 +272,14 @@
             snake.forEach(drawSnakePart);
 
             if (isGameOver()) {
+                clearInterval(gameInterval);
                 alert(`Game Over! Your score: ${score}`);
                 if (score > highScore) {
                     highScore = score;
                     highScoreElement.textContent = `High Score: ${highScore}`;
-                    updateHighScore(highScore);
+                    updateHighScore(score);
                 }
-                snake = [{x: 200, y: 200}];
-                direction = 'right';
-                score = 0;
-                scoreElement.textContent = 'Score: 0';
-                generateFood();
             }
-
-            setTimeout(gameLoop, 100);
         }
 
         function isGameOver() {
@@ -131,69 +291,53 @@
             );
         }
 
+        function startNewGame() {
+            snake = [{ x: 200, y: 200 }];
+            direction = 'right';
+            score = 0;
+            scoreElement.textContent = 'Score: 0';
+            generateFood();
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(gameLoop, 100);
+        }
+
+        function exitGame() {
+            clearInterval(gameInterval);
+            gameContainer.style.display = 'none';
+            document.querySelector('.background').style.display = 'flex';
+            currentUser = null;
+            showLoginForm();
+        }
+
+        async function updateHighScore(score) {
+            try {
+                const response = await fetch('/updateHighScore', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ score, email: currentUser.email }),
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    console.error('Failed to update high score:', data.message);
+                }
+            } catch (error) {
+                console.error('Error updating high score:', error);
+            }
+        }
+
         document.addEventListener('keydown', (e) => {
-            switch(e.key) {
+            switch (e.key) {
                 case 'ArrowUp': if (direction !== 'down') direction = 'up'; break;
                 case 'ArrowDown': if (direction !== 'up') direction = 'down'; break;
                 case 'ArrowLeft': if (direction !== 'right') direction = 'left'; break;
                 case 'ArrowRight': if (direction !== 'left') direction = 'right'; break;
             }
         });
-
-        function login() {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            
-            fetch('/login', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email, password})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Login successful!');
-                    highScore = data.highScore;
-                    highScoreElement.textContent = `High Score: ${highScore}`;
-                    generateFood();
-                    gameLoop();
-                } else {
-                    alert('Login failed. Please try again.');
-                }
-            });
-        }
-
-        function register() {
-            const email = document.getElementById('register-email').value;
-            const password = document.getElementById('register-password').value;
-            
-            if (password.length < 8) {
-                alert('Password must be at least 8 characters long.');
-                return;
-            }
-
-            fetch('/register', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email, password})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Registration successful! Please log in.');
-                } else {
-                    alert('Registration failed. Please try again.');
-                }
-            });
-        }
-
-        function updateHighScore(score) {
-            fetch('/updateHighScore', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({score})
-            });
-        }
     </script>
 </body>
+
 </html>
