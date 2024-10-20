@@ -1,84 +1,127 @@
 const express = require('express');
-const mysql = require('mysql2');
+const mysql = require('mysql2/promise');
 const bcrypt = require('bcrypt');
 const bodyParser = require('body-parser');
+const path = require('path');
 
 const app = express();
 app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
-const db = mysql.createConnection({
+const dbConfig = {
     host: 'localhost',
     user: 'root',
     password: 'Gs235331!',
     database: 'snake_game'
+};
+
+async function initializeDatabase() {
+    try {
+        const connection = await mysql.createConnection({
+            host: dbConfig.host,
+            user: dbConfig.user,
+            password: dbConfig.password
+        });
+
+        await connection.query(`CREATE DATABASE IF NOT EXISTS ${dbConfig.database}`);
+        await connection.query(`USE ${dbConfig.database}`);
+
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                first_name VARCHAR(255) NOT NULL,
+                last_name VARCHAR(255) NOT NULL,
+                high_score INT DEFAULT 0
+            )
+        `);
+
+        console.log('Database and table initialized successfully');
+        await connection.end();
+    } catch (error) {
+        console.error('Error initializing database:', error);
+        process.exit(1);
+    }
+}
+
+initializeDatabase().then(() => {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
 });
 
-db.connect((err) => {
-    if (err) throw err;
-    console.log('Connected to MySQL database');
-});
+const pool = mysql.createPool(dbConfig);
 
-app.get('/', (req, res) =>{
-    res.sendFile(Path2D.join(__dirname, 'public', 'index.html'));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.post('/register', async (req, res) => {
-    const { email, password } = req.body;
-    
+    const { email, password, firstName, lastName } = req.body;
+
     if (password.length < 8) {
         return res.json({ success: false, message: 'Password must be at least 8 characters long.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const query = 'INSERT INTO users (email, password) VALUES (?, ?)';
-    db.query(query, [email, hashedPassword], (err, result) => {
-        if (err) {
-            console.error(err);
-            res.json({ success: false, message: 'Registration failed' });
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const query = 'INSERT INTO users (email, password, first_name, last_name) VALUES (?, ?, ?, ?)';
+        await pool.query(query, [email, hashedPassword, firstName, lastName]);
+        res.json({ success: true, message: 'Registration successful' });
+    } catch (error) {
+        console.error(error);
+        if (error.code === 'ER_DUP_ENTRY') {
+            res.json({ success: false, message: 'Email already exists' });
         } else {
-            res.json({ success: true, message: 'Registration successful' });
+            res.json({ success: false, message: 'Registration failed' });
         }
-    });
+    }
 });
 
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
-    const query = 'SELECT * FROM users WHERE email = ?';
-    db.query(query, [email], async (err, results) => {
-        if (err) {
-            console.error(err);
-            res.json({ success: false, message: 'Login failed' });
-        } else if (results.length > 0) {
+    try {
+        const [results] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (results.length > 0) {
             const match = await bcrypt.compare(password, results[0].password);
             if (match) {
-                res.json({ success: true, message: 'Login successful', highScore: results[0].high_score });
+                res.json({
+                    success: true,
+                    message: 'Login successful',
+                    highScore: results[0].high_score,
+                    firstName: results[0].first_name,
+                    lastName: results[0].last_name
+                });
             } else {
                 res.json({ success: false, message: 'Invalid credentials' });
             }
         } else {
             res.json({ success: false, message: 'User not found' });
         }
-    });
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: 'Login failed' });
+    }
 });
 
-app.post('/updateHighScore', (req, res) => {
+app.post('/updateHighScore', async (req, res) => {
     const { score, email } = req.body;
 
-    const query = 'UPDATE users SET high_score = ? WHERE email = ? AND high_score < ?';
-    db.query(query, [score, email, score], (err, result) => {
-        if (err) {
-            console.error(err);
-            res.json({ success: false, message: 'Failed to update high score' });
-        } else {
-            res.json({ success: true, message: 'High score updated' });
-        }
-    });
-});
+    try {
+        const query = 'UPDATE users SET high_score = ? WHERE email = ? AND high_score < ?';
+        const [result] = await pool.query(query, [score, email, score]);
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+        if (result.affectedRows > 0) {
+            res.json({ success: true, message: 'High score updated' });
+        } else {
+            res.json({ success: true, message: 'High score not updated (not higher than current)' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.json({ success: false, message: 'Failed to update high score' });
+    }
 });
