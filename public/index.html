@@ -57,6 +57,17 @@
             cursor: pointer;
             margin-top: 10px;
         }
+        #start-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 5px;
+        }
         #game-container {
             text-align: center;
             position: relative;
@@ -66,20 +77,20 @@
             border: 2px solid #000;
         }
         #new-game-btn, #exit-game-btn {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
+            position: relative;
+            top: 25%;
+            transform: translateY(-15%);
             padding: 10px 20px;
             font-size: 16px;
         }
         #new-game-btn {
-            left: -120px;
+            left: -20px;
         }
         #exit-game-btn {
-            right: -120px;
+            right: -20px;
         }
         #user-info {
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
     </style>
 </head>
@@ -102,10 +113,11 @@
             </div>
         </div>
     </div>
-
+    <div class="background">
     <div id="game-container">
         <div id="user-info"></div>
         <canvas id="game-board" width="400" height="400"></canvas>
+        <div id="start-message">Press any arrow key to start</div>
         <div id="score">Score: 0</div>
         <div id="high-score">High Score: 0</div>
         <button id="new-game-btn" onclick="startNewGame()">New Game</button>
@@ -122,6 +134,9 @@
         const userInfoElement = document.getElementById('user-info');
         const gameContainer = document.getElementById('game-container');
         const loginContainer = document.querySelector('.login-container');
+        const startMessage = document.getElementById('start-message');
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
 
         let snake = [{x: 200, y: 200}];
         let food = {};
@@ -130,6 +145,7 @@
         let highScore = 0;
         let gameInterval;
         let currentUser = null;
+        let gameStarted = false;
 
         function showRegisterForm() {
             loginForm.style.display = 'none';
@@ -218,14 +234,79 @@
             startNewGame();
         }
 
-        function drawSnakePart(snakePart) {
-            ctx.fillStyle = 'green';
-            ctx.fillRect(snakePart.x, snakePart.y, 10, 10);
+        function drawSnakePart(snakePart, index) {
+            if (index == 0) {
+                
+                ctx.fillStyle = 'rgba(0, 200, 0, 0.8)'; 
+                ctx.beginPath();
+                ctx.arc(snakePart.x + gridSize/2, snakePart.y + gridSize/2, gridSize/2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = 'darkgreen';
+                ctx.stroke();
+
+                
+                ctx.fillStyle = 'white';
+                let eyeSize = gridSize / 5;
+                let eyeOffset = gridSize / 3;
+                
+                
+                let leftEyeX, leftEyeY, rightEyeX, rightEyeY;
+                switch(direction) {
+                    case 'up':
+                        leftEyeX = snakePart.x + eyeOffset;
+                        leftEyeY = snakePart.y + eyeOffset;
+                        rightEyeX = snakePart.x + gridSize - eyeOffset;
+                        rightEyeY = snakePart.y + eyeOffset;
+                        break;
+                    case 'down':
+                        leftEyeX = snakePart.x + eyeOffset;
+                        leftEyeY = snakePart.y + gridSize - eyeOffset;
+                        rightEyeX = snakePart.x + gridSize - eyeOffset;
+                        rightEyeY = snakePart.y + gridSize - eyeOffset;
+                        break;
+                    case 'left':
+                        leftEyeX = snakePart.x + eyeOffset;
+                        leftEyeY = snakePart.y + eyeOffset;
+                        rightEyeX = snakePart.x + eyeOffset;
+                        rightEyeY = snakePart.y + gridSize - eyeOffset;
+                        break;
+                    case 'right':
+                        leftEyeX = snakePart.x + gridSize - eyeOffset;
+                        leftEyeY = snakePart.y + eyeOffset;
+                        rightEyeX = snakePart.x + gridSize - eyeOffset;
+                        rightEyeY = snakePart.y + gridSize - eyeOffset;
+                        break;
+                }
+                
+                ctx.beginPath();
+                ctx.arc(leftEyeX, leftEyeY, eyeSize, 0, Math.PI * 2);
+                ctx.arc(rightEyeX, rightEyeY, eyeSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(leftEyeX, leftEyeY, eyeSize/2, 0, Math.PI * 2);
+                ctx.arc(rightEyeX, rightEyeY, eyeSize/2, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+                ctx.fillRect(snakePart.x, snakePart.y, gridSize, gridSize);
+                ctx.strokeStyle = 'darkgreen';
+                ctx.strokeRect(snakePart.x, snakePart.y, gridSize, gridSize);
+            }
         }
 
         function drawFood() {
-            ctx.fillStyle = 'red';
-            ctx.fillRect(food.x, food.y, 10, 10);
+          ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.beginPath();
+            ctx.arc(food.x + gridSize/2, food.y + gridSize/2, gridSize/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'darkred';
+            ctx.stroke();
+              
+            
         }
 
         function moveSnake() {
@@ -240,7 +321,7 @@
 
             snake.unshift(head);
 
-            if (head.x === food.x && head.y === food.y) {
+            if (head.x == food.x && head.y == food.y) {
                 score++;
                 scoreElement.textContent = `Score: ${score}`;
                 generateFood();
@@ -254,6 +335,9 @@
                 x: Math.floor(Math.random() * 40) * 10,
                 y: Math.floor(Math.random() * 40) * 10
             };
+            if (snake.some(part => part.x === food.x && part.y === food.y)) {
+                generateFood();
+            }
         }
 
         function gameLoop() {
@@ -270,6 +354,7 @@
                     highScoreElement.textContent = `High Score: ${highScore}`;
                     updateHighScore(score);
                 }
+                startNewGame();
             }
         }
 
@@ -278,18 +363,26 @@
             return (
                 head.x < 0 || head.x >= canvas.width ||
                 head.y < 0 || head.y >= canvas.height ||
-                snake.slice(1).some(part => part.x === head.x && part.y === head.y)
+                snake.slice(1).some(part => part.x == head.x && part.y == head.y)
             );
         }
 
         function startNewGame() {
-            snake = [{ x: 200, y: 200 }];
-            direction = 'right';
+            snake = [{x: 200, y: 200}];
+            direction = '';
             score = 0;
             scoreElement.textContent = 'Score: 0';
             generateFood();
             if (gameInterval) clearInterval(gameInterval);
-            gameInterval = setInterval(gameLoop, 100);
+            gameStarted = false;
+            startMessage.style.display = 'block';
+            drawInitialState();
+        }
+
+        function drawInitialState() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawFood();
+            drawSnakePart(snake[0], 0);
         }
 
         function exitGame() {
@@ -319,14 +412,21 @@
                 console.error('Error updating high score:', error);
             }
         }
-
         document.addEventListener('keydown', (e) => {
-            switch (e.key) {
-                case 'ArrowUp': if (direction !== 'down') direction = 'up'; break;
-                case 'ArrowDown': if (direction !== 'up') direction = 'down'; break;
-                case 'ArrowLeft': if (direction !== 'right') direction = 'left'; break;
-                case 'ArrowRight': if (direction !== 'left') direction = 'right'; break;
+            if (!gameStarted && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                gameStarted = true;
+                startMessage.style.display = 'none';
+                gameInterval = setInterval(gameLoop, 150);
             }
+        
+            switch (e.key) {
+                case 'ArrowUp': if (direction != 'down') direction = 'up'; break;
+                case 'ArrowDown': if (direction != 'up') direction = 'down'; break;
+                case 'ArrowLeft': if (direction != 'right') direction = 'left'; break;
+                case 'ArrowRight': if (direction != 'left') direction = 'right'; break;
+        
+            }
+        
         });
     </script>
 </body>
