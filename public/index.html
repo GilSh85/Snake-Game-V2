@@ -1,20 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Snake Game</title>
     <style>
-        body,
-        html {
+        body, html {
             height: 100%;
             margin: 0;
             font-family: Arial, sans-serif;
         }
-
         .background {
-            background-image: url('MainBG.jpg');
+            background-image: url('mainBG.jpg');
             height: 100%;
             background-position: center;
             background-repeat: no-repeat;
@@ -23,77 +20,69 @@
             justify-content: center;
             align-items: center;
         }
-
         .login-container {
-            background-color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(255, 255, 255, 0.7);
             padding: 20px;
             border-radius: 5px;
             text-align: center;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-
-        .login-form {
+        .login-form, .register-form {
             display: flex;
-            flex-direction: row;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             margin-bottom: 10px;
         }
-
         input {
             margin: 5px;
             padding: 5px;
-            width: 150px;
+            width: 200px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
         }
-
         button {
             margin: 5px;
             padding: 5px 10px;
             cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            width: 150px;
         }
-
-        .register-link {
-            color: blue;
+        .form-switch-link {
+            color: #4CAF50;
             text-decoration: underline;
             cursor: pointer;
+            margin-top: 10px;
         }
-
-        .register-form {
-            display: none;
-        }
-
         #game-container {
             text-align: center;
             position: relative;
             display: none;
         }
-
         #game-board {
             border: 2px solid #000;
         }
-
-        #new-game-btn,
-        #exit-game-btn {
+        #new-game-btn, #exit-game-btn {
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
             padding: 10px 20px;
             font-size: 16px;
         }
-
         #new-game-btn {
             left: -120px;
         }
-
         #exit-game-btn {
             right: -120px;
         }
-
         #user-info {
             margin-bottom: 10px;
         }
     </style>
 </head>
-
 <body>
     <div class="background">
         <div class="login-container">
@@ -101,14 +90,15 @@
                 <input type="email" id="login-email" placeholder="Email">
                 <input type="password" id="login-password" placeholder="Password">
                 <button onclick="login()">Login</button>
+                <div class="form-switch-link" onclick="showRegisterForm()">Register</div>
             </div>
-            <div class="register-link" onclick="showRegisterForm()">Register</div>
-            <div id="register-form" class="register-form">
+            <div id="register-form" class="register-form" style="display: none;">
                 <input type="text" id="register-first-name" placeholder="First Name">
                 <input type="text" id="register-last-name" placeholder="Last Name">
                 <input type="email" id="register-email" placeholder="Email">
                 <input type="password" id="register-password" placeholder="Password">
                 <button onclick="register()">Register</button>
+                <div class="form-switch-link" onclick="showLoginForm()">Back to Login</div>
             </div>
         </div>
     </div>
@@ -123,6 +113,8 @@
     </div>
 
     <script>
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
         const canvas = document.getElementById('game-board');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
@@ -130,9 +122,8 @@
         const userInfoElement = document.getElementById('user-info');
         const gameContainer = document.getElementById('game-container');
         const loginContainer = document.querySelector('.login-container');
-        const registerForm = document.getElementById('register-form');
 
-        let snake = [{ x: 200, y: 200 }];
+        let snake = [{x: 200, y: 200}];
         let food = {};
         let direction = 'right';
         let score = 0;
@@ -141,14 +132,19 @@
         let currentUser = null;
 
         function showRegisterForm() {
-            document.getElementById('login-form').style.display = 'none';
-            registerForm.style.display = 'block';
+            loginForm.style.display = 'none';
+            registerForm.style.display = 'flex';
+        }
+
+        function showLoginForm() {
+            registerForm.style.display = 'none';
+            loginForm.style.display = 'flex';
         }
 
         async function login() {
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
-
+            
             try {
                 const response = await fetch('/login', {
                     method: 'POST',
@@ -182,7 +178,7 @@
             const lastName = document.getElementById('register-last-name').value;
             const email = document.getElementById('register-email').value;
             const password = document.getElementById('register-password').value;
-
+            
             try {
                 const response = await fetch('/register', {
                     method: 'POST',
@@ -212,11 +208,6 @@
             document.getElementById('register-last-name').value = '';
             document.getElementById('register-email').value = '';
             document.getElementById('register-password').value = '';
-        }
-
-        function showLoginForm() {
-            registerForm.style.display = 'none';
-            document.getElementById('login-form').style.display = 'flex';
         }
 
         function startGame() {
