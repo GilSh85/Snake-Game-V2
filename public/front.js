@@ -208,7 +208,7 @@ function generateFood() {
         x: Math.floor(Math.random() * 50) * 10,
         y: Math.floor(Math.random() * 50) * 10
     };
-    if (snake.some(part => part.x === food.x && part.y === food.y)) {
+    if (snake.some(part => part.x == food.x && part.y == food.y)) {
         generateFood();
     }
 }
