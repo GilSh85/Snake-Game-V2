@@ -72,7 +72,7 @@ app.post('/register', async (req, res) => {
         res.json({ success: true, message: 'Registration successful' });
     } catch (error) {
         console.error(error);
-        if (error.code === 'ER_DUP_ENTRY') {
+        if (error.code == 'ER_DUP_ENTRY') {
             res.json({ success: false, message: 'Email already exists' });
         } else {
             res.json({ success: false, message: 'Registration failed' });
