@@ -11,7 +11,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 const dbConfig = {
     host: 'localhost',
     user: 'root',
-    password: 'Gs235331!',
+    password: '***********',
     database: 'snake_game'
 };
 
